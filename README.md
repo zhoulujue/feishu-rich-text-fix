@@ -24,7 +24,7 @@
 ```bash
 # 1. 克隆
 cd ~/.hermes/skills
-git clone https://github.com/YOUR_USERNAME/feishu-rich-text-fix.git
+git clone https://github.com/zhoulujue/feishu-rich-text-fix.git
 
 # 2. 一键应用修复
 python3 ~/.hermes/skills/feishu-rich-text-fix/scripts/apply.py
