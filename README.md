@@ -3,7 +3,6 @@
 > 一键修复 Hermes Agent 的三个飞书富文本 Bug。独立 Skill，复制即用。
 
 [![Skill Type](https://img.shields.io/badge/Hermes-Skill-8A2BE2)](https://hermes-agent.nousresearch.com)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://makeapullrequest.com)
 
 ---
 
@@ -17,36 +16,40 @@
 
 ---
 
-## 🚀 快速安装与使用
+## 🚀 安装方式
 
-### 方式一：克隆到 skills 目录（推荐）
+### 方式一：贴给 Hermes Agent（最省事 🤖）
+
+**直接把下面这段话发给你的 Hermes Agent（飞书私聊 / 终端均可）：**
+
+> 请帮我安装并应用飞书富文本修复 skill：
+>
+> 1. 克隆 https://github.com/zhoulujue/feishu-rich-text-fix.git 到 ~/.hermes/skills/feishu-rich-text-fix
+> 2. 执行 python3 ~/.hermes/skills/feishu-rich-text-fix/scripts/apply.py
+> 3. 完成后提醒我在终端手动执行 **hermes gateway restart**
+
+Agent 会自动完成克隆、打补丁，你只需要最后手动重启 Gateway（这一步 Agent 不能在进程内完成）。
+
+### 方式二：Shell 一行命令（最快 ⚡）
 
 ```bash
-# 1. 克隆
+curl -sSL https://raw.githubusercontent.com/zhoulujue/feishu-rich-text-fix/main/setup.sh | bash
+```
+
+然后手动执行：
+
+```bash
+hermes gateway restart
+```
+
+### 方式三：手动克隆
+
+```bash
 cd ~/.hermes/skills
 git clone https://github.com/zhoulujue/feishu-rich-text-fix.git
-
-# 2. 一键应用修复
-python3 ~/.hermes/skills/feishu-rich-text-fix/scripts/apply.py
-
-# 3. 重启 Gateway（⚠️ 必须在 macOS 终端手动执行，不能通过 Hermes Agent 进程内操作）
-hermes gateway restart
-```
-
-### 方式二：手动下载
-
-```bash
-# 下载 ZIP 解压到 ~/.hermes/skills/feishu-rich-text-fix/
-# 然后执行：
 python3 ~/.hermes/skills/feishu-rich-text-fix/scripts/apply.py
 hermes gateway restart
 ```
-
-### 方式三：Hermes Agent 自动加载
-
-把 `SKILL.md` 所在目录放到 `~/.hermes/skills/` 下，Hermes Agent 启动时自动识别。之后只需告诉 Agent：
-
-> "加载 feishu-rich-text-fix skill 然后应用修复"
 
 ---
 
@@ -55,14 +58,9 @@ hermes gateway restart
 ```bash
 TARGET=$(ls -d /opt/homebrew/Cellar/hermes-agent/*/libexec/lib/python*/site-packages/gateway/platforms/feishu.py | tail -1)
 
-# Fix 1: 表格是否走 interactive 卡片
-grep -A3 "MARKDOWN_TABLE_RE" "$TARGET" | grep -q "interactive" && echo "✅ Fix 1" || echo "❌ Fix 1"
-
-# Fix 2: 合并转发解析
-grep -q "forward_messages" "$TARGET" && echo "✅ Fix 2" || echo "❌ Fix 2"
-
-# Fix 3: user_status_change 拦截
-grep -q "user_status_change" "$TARGET" && echo "✅ Fix 3" || echo "❌ Fix 3"
+grep -A3 "MARKDOWN_TABLE_RE" "$TARGET" | grep -q "interactive" && echo "✅ Fix 1 表格" || echo "❌ Fix 1"
+grep -q "forward_messages" "$TARGET" && echo "✅ Fix 2 转发" || echo "❌ Fix 2"
+grep -q "user_status_change" "$TARGET" && echo "✅ Fix 3 日志" || echo "❌ Fix 3"
 ```
 
 ---
@@ -74,7 +72,7 @@ python3 ~/.hermes/skills/feishu-rich-text-fix/scripts/rollback.py
 hermes gateway restart
 ```
 
-每次 `apply.py` 运行都会自动创建 `.bak` 备份，回滚从备份恢复。
+每次 apply 自动创建 `.bak` 备份，回滚从备份恢复。
 
 ---
 
@@ -84,16 +82,16 @@ hermes gateway restart
 
 | Fix | 实施方式 |
 |-----|---------|
-| **#1 表格** | 检测到 Markdown 表格时，将 `msg_type` 从 `"text"` 改为 `"interactive"`，构造 Schema 2.0 卡片（`tag:markdown` 原生支持 CommonMark 表格） |
-| **#2 转发** | 在 `_collect_forward_entries` 中增加 `forward_messages` 键名、`data.merge_forward_content` 嵌套路径解包、递归字典遍历兜底 |
-| **#3 日志** | 在事件分发器 `build()` 链中为 `user_status_change` 注册空处理器（`lambda data: None`），静默丢弃无 UUID 的事件 |
+| **#1 表格** | 检测到 Markdown 表格时，将 `msg_type` 从 `"text"` 路由到 `"interactive"` Schema 2.0 卡片 |
+| **#2 转发** | 增加 `forward_messages` / `data.merge_forward_content` 嵌套解包 + 递归字典遍历兜底 |
+| **#3 日志** | 为 `user_status_change` 注册空处理器，静默丢弃无 UUID 的事件 |
 
 ---
 
 ## ⚠️ 注意事项
 
 - **`brew upgrade hermes-agent` 会覆盖修复**，升级后需重新运行 `apply.py`
-- **幂等安全**：重复运行不会出错，已打过的 patch 自动跳过
+- **幂等安全**：重复运行不会出错，已打过自动跳过
 - 上游 PR 合并后此仓库可归档
 
 ---
@@ -103,9 +101,10 @@ hermes gateway restart
 ```
 feishu-rich-text-fix/
 ├── README.md           # 本文件
-├── SKILL.md            # Hermes Skill 定义（Agent 可读取）
+├── setup.sh            # Shell 一键安装
+├── SKILL.md            # Hermes Skill 定义
 └── scripts/
-    ├── apply.py        # 一键修复脚本
+    ├── apply.py        # 修复脚本
     └── rollback.py     # 回滚脚本
 ```
 
